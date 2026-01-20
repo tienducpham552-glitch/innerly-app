@@ -1,27 +1,45 @@
 import streamlit as st
-import google.generativeai as genai
-import pandas as pd
+import os
+import subprocess
+import sys
 import time
-from datetime import datetime
 
-# 1. CẤU HÌNH
+# --- 1. CÀI ĐẶT CƯỠNG CHẾ THƯ VIỆN (FIX LỖI 404) ---
+# Đoạn này sẽ tự động cài bản mới nhất mà không cần requirements.txt
+try:
+    import google.generativeai as genai
+except ImportError:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "google-generativeai>=0.8.3"])
+    import google.generativeai as genai
+
+# Kiểm tra lại và cài đè nếu phiên bản cũ
+import google.generativeai as genai
+try:
+    # Thử gọi model, nếu lỗi nghĩa là bản cũ -> Cài lại
+    model_test = genai.GenerativeModel('gemini-1.5-flash')
+except:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "google-generativeai"])
+    import google.generativeai as genai
+
+# --- 2. CẤU HÌNH TRANG ---
 st.set_page_config(page_title="Innerly Studio", page_icon="🧸", layout="wide")
 
-# 2. API KEY (Tự động lấy từ Secrets)
+# Lấy API Key
 api_key = st.secrets.get("GEMINI_API_KEY", "")
 if api_key:
     genai.configure(api_key=api_key)
 
 def get_ai_response(prompt):
     if not api_key:
-        return "⚠️ Chưa nhập Key! Bạn hãy vào Settings -> Secrets để điền nhé."
+        return "⚠️ Chưa nhập Key! Vào Settings -> Secrets để điền nhé."
     try:
+        # Dùng model Flash (Nhanh & Mới nhất)
         model = genai.GenerativeModel('gemini-1.5-flash')
         return model.generate_content(prompt).text
     except Exception as e:
         return f"Lỗi kết nối: {str(e)}"
 
-# 3. GIAO DIỆN
+# --- 3. GIAO DIỆN ---
 st.markdown("""<style>
     @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@500;700&display=swap');
     * { font-family: 'Quicksand', sans-serif; }
@@ -44,9 +62,10 @@ if menu == "Chat AI":
         st.session_state.history.append({"role": "user", "content": prompt})
         st.chat_message("user").write(prompt)
         with st.chat_message("assistant"):
-            res = get_ai_response(prompt)
-            st.write(res)
-            st.session_state.history.append({"role": "assistant", "content": res})
+            with st.spinner("Innerly đang suy nghĩ..."):
+                res = get_ai_response(prompt)
+                st.write(res)
+                st.session_state.history.append({"role": "assistant", "content": res})
 
 elif menu == "Rút Thẻ":
     st.header("Thông điệp chữa lành 🌿")
