@@ -8,11 +8,8 @@ import google.generativeai as genai
 # --- 1. CẤU HÌNH TRANG ---
 st.set_page_config(page_title="Innerly Studio Final", page_icon="🧸", layout="wide")
 
-# --- 2. CẤU HÌNH API ---
-# Nếu chạy trên máy tính, điền key vào dòng dưới. Trên Cloud thì để trống.
-MY_LOCAL_KEY = ""
-
-# Lấy Key từ Secrets hoặc Local
+# --- 2. CẤU HÌNH API THÔNG MINH ---
+MY_LOCAL_KEY = "" # Điền key vào đây nếu chạy trên máy tính
 api_key = st.secrets.get("GEMINI_API_KEY", MY_LOCAL_KEY)
 
 if api_key:
@@ -20,23 +17,27 @@ if api_key:
 
 def get_ai_response(prompt_text):
     if not api_key:
-        return "⚠️ Chưa có API Key! Hãy kiểm tra lại cài đặt Secrets trên Streamlit Cloud."
-    try:
-        # Sử dụng model mới nhất
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        response = model.generate_content(prompt_text)
-        return response.text
-    except Exception as e:
-        return f"Lỗi kết nối AI: {str(e)}"
+        return "⚠️ Chưa có API Key! Hãy kiểm tra cài đặt Secrets."
+    
+    # DANH SÁCH CÁC MODEL ĐỂ THỬ (Nếu cái đầu lỗi, sẽ thử cái sau)
+    models_to_try = ['gemini-1.5-flash', 'gemini-pro', 'models/gemini-1.5-flash-latest']
+    
+    for model_name in models_to_try:
+        try:
+            model = genai.GenerativeModel(model_name)
+            response = model.generate_content(prompt_text)
+            return response.text
+        except Exception:
+            continue # Nếu lỗi thì bỏ qua, thử cái tiếp theo
+            
+    return "Xin lỗi, Innerly đang quá tải. Bạn hãy thử lại sau 1 phút nhé!"
 
 # --- 3. CSS GIAO DIỆN ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap');
     html, body, [class*="css"] { font-family: 'Quicksand', sans-serif; }
-    
     [data-testid="stSidebar"] { background-color: rgba(255, 255, 255, 0.95); border-right: 1px solid #eee; }
-    
     .card-inner {
         position: relative; width: 100%; min-height: 400px;
         text-align: center; border-radius: 20px;
@@ -49,9 +50,7 @@ st.markdown("""
     }
     .card-icon { font-size: 60px; margin-bottom: 15px; }
     .card-title { font-size: 20px; font-weight: 700; color: #333; margin-bottom: 10px; }
-    
     .stButton>button { border-radius: 50px; border: none; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-    
     .level-badge {
         padding: 10px; border-radius: 15px;
         background: linear-gradient(45deg, #85FFBD 0%, #FFFB7D 100%);
@@ -160,7 +159,8 @@ elif menu == "Chat AI":
         st.chat_message("user").write(prompt)
         with st.chat_message("assistant"):
             with st.spinner("Đang lắng nghe..."):
-                res = get_ai_response(f"User: {user_name}. Mood: {curr_mood}. Msg: {prompt}")
+                # Gửi prompt đơn giản để test kết nối trước
+                res = get_ai_response(f"User nói: {prompt}")
                 st.write(res)
                 st.session_state.chat_history.append({"role": "assistant", "content": res})
 
