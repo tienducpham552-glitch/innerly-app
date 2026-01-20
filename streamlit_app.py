@@ -2,79 +2,61 @@ import streamlit as st
 import sys
 import subprocess
 
-# --- 1. TỰ ĐỘNG CÀI ĐẶT (CỐ GẮNG ÉP MÁY CHỦ CẬP NHẬT) ---
+st.set_page_config(page_title="Trạm Sửa Chữa Innerly", page_icon="🛠️")
+
+st.title("🛠️ TRẠM CHẨN ĐOÁN & SỬA LỖI")
+
+# --- 1. KIỂM TRA PHIÊN BẢN HIỆN TẠI ---
 try:
     import google.generativeai as genai
-except ImportError:
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "google-generativeai"])
-    import google.generativeai as genai
-
-# --- 2. CẤU HÌNH TRANG ---
-st.set_page_config(page_title="Innerly Studio", page_icon="🧸", layout="wide")
-
-# Lấy phiên bản thư viện hiện tại để hiển thị
-try:
-    lib_version = genai.__version__
+    version = genai.__version__
 except:
-    lib_version = "Quá cũ (Không xác định)"
+    version = "Không xác định (Chưa cài)"
 
-# Lấy API Key
-api_key = st.secrets.get("GEMINI_API_KEY", "")
-if api_key:
-    genai.configure(api_key=api_key)
+st.metric(label="Phiên bản Google GenAI trên máy chủ:", value=version)
 
-def get_ai_response(prompt):
-    if not api_key:
-        return "⚠️ Chưa nhập Key! Vào Settings -> Secrets để điền nhé."
-    
-    # CHIẾN THUẬT THÔNG MINH: Thử cái mới, nếu lỗi thì dùng cái cũ
-    try:
-        # Ưu tiên dùng Flash (Mới, Nhanh)
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        return model.generate_content(prompt).text
-    except Exception as e_flash:
+if str(version).startswith("0.8"):
+    st.success("✅ Phiên bản ĐÚNG (0.8.x)! Bạn có thể dán lại code app chính để dùng.")
+else:
+    st.error("❌ Phiên bản QUÁ CŨ! Cần cập nhật ngay.")
+
+# --- 2. NÚT BẤM CƯỠNG CHẾ CÀI ĐẶT ---
+st.write("---")
+st.write("### 🚑 Giải pháp khẩn cấp")
+if st.button("🚀 BẤM VÀO ĐÂY ĐỂ ÉP CẬP NHẬT (Force Install)", type="primary"):
+    with st.status("Đang tiến hành cài đặt...", expanded=True) as status:
+        st.write("1. Đang tải thư viện google-generativeai mới nhất...")
         try:
-            # Nếu Flash lỗi, tự động chuyển sang Pro (Cũ nhưng ổn định)
-            model = genai.GenerativeModel('gemini-pro')
-            return f"Run with Pro: {model.generate_content(prompt).text}"
-        except Exception as e_pro:
-            return f"❌ Lỗi toàn tập:\nFlash: {str(e_flash)}\nPro: {str(e_pro)}"
+            # Chạy lệnh pip install trực tiếp
+            result = subprocess.run(
+                [sys.executable, "-m", "pip", "install", "--upgrade", "google-generativeai>=0.8.3"],
+                capture_output=True, text=True
+            )
+            st.code(result.stdout) # Hiện nhật ký cài đặt
+            
+            if result.returncode == 0:
+                st.success("✅ CÀI ĐẶT THÀNH CÔNG!")
+                st.balloons()
+                st.warning("⚠️ QUAN TRỌNG: Hãy tải lại trang (F5) ngay bây giờ để áp dụng!")
+            else:
+                st.error("❌ Cài đặt thất bại.")
+                st.code(result.stderr)
+        except Exception as e:
+            st.error(f"Lỗi hệ thống: {e}")
+        status.update(label="Hoàn tất quy trình!", state="complete")
 
-# --- 3. GIAO DIỆN ---
-st.markdown("""<style>
-    @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@500;700&display=swap');
-    * { font-family: 'Quicksand', sans-serif; }
-    .stApp { background: linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%); }
-    .debug-box { background: #333; color: #0f0; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 12px; margin-bottom: 20px;}
-</style>""", unsafe_allow_html=True)
-
-with st.sidebar:
-    st.title("Innerly Studio 🧸")
-    st.markdown(f"**Trạng thái hệ thống:**")
-    st.code(f"Phiên bản GenAI: {lib_version}") # Hiện phiên bản để kiểm tra
-    menu = st.radio("Menu", ["Chat AI", "Rút Thẻ"])
-
-if menu == "Chat AI":
-    st.header("Tâm sự cùng Innerly")
-    
-    # Hiển thị cảnh báo nếu phiên bản quá cũ
-    if str(lib_version).startswith("0.3") or str(lib_version).startswith("0.4"):
-        st.warning(f"⚠️ Máy chủ đang dùng phiên bản cũ ({lib_version}). Innerly sẽ tự động chuyển sang chế độ tương thích (Gemini Pro).")
-
-    if "history" not in st.session_state: st.session_state.history = []
-    
-    for msg in st.session_state.history:
-        st.chat_message(msg["role"]).write(msg["content"])
-        
-    if prompt := st.chat_input("Bạn đang nghĩ gì..."):
-        st.session_state.history.append({"role": "user", "content": prompt})
-        st.chat_message("user").write(prompt)
-        with st.chat_message("assistant"):
-            with st.spinner("Innerly đang suy nghĩ..."):
-                res = get_ai_response(prompt)
-                st.write(res)
-                st.session_state.history.append({"role": "assistant", "content": res})
-
-elif menu == "Rút Thẻ":
-    st.header("Thông điệp chữa lành 🌿")
-    st.info("Tính năng đang bảo trì để nâng cấp.")
+# --- 3. TEST KẾT NỐI ---
+st.write("---")
+st.write("### 🔍 Kiểm tra kết nối Model")
+api_key = st.secrets.get("GEMINI_API_KEY", "")
+if not api_key:
+    st.info("Chưa nhập API Key trong Secrets.")
+else:
+    if st.button("Kiểm tra danh sách Model"):
+        try:
+            genai.configure(api_key=api_key)
+            models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+            st.success(f"Kết nối tốt! Tìm thấy {len(models)} model:")
+            st.json(models)
+        except Exception as e:
+            st.error(f"Vẫn lỗi kết nối: {e}")
