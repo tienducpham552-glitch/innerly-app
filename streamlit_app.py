@@ -1,28 +1,22 @@
 import streamlit as st
-import os
-import subprocess
 import sys
-import time
+import subprocess
 
-# --- 1. CÀI ĐẶT CƯỠNG CHẾ THƯ VIỆN (FIX LỖI 404) ---
-# Đoạn này sẽ tự động cài bản mới nhất mà không cần requirements.txt
+# --- 1. TỰ ĐỘNG CÀI ĐẶT (CỐ GẮNG ÉP MÁY CHỦ CẬP NHẬT) ---
 try:
     import google.generativeai as genai
 except ImportError:
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "google-generativeai>=0.8.3"])
-    import google.generativeai as genai
-
-# Kiểm tra lại và cài đè nếu phiên bản cũ
-import google.generativeai as genai
-try:
-    # Thử gọi model, nếu lỗi nghĩa là bản cũ -> Cài lại
-    model_test = genai.GenerativeModel('gemini-1.5-flash')
-except:
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "google-generativeai"])
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "google-generativeai"])
     import google.generativeai as genai
 
 # --- 2. CẤU HÌNH TRANG ---
 st.set_page_config(page_title="Innerly Studio", page_icon="🧸", layout="wide")
+
+# Lấy phiên bản thư viện hiện tại để hiển thị
+try:
+    lib_version = genai.__version__
+except:
+    lib_version = "Quá cũ (Không xác định)"
 
 # Lấy API Key
 api_key = st.secrets.get("GEMINI_API_KEY", "")
@@ -32,27 +26,41 @@ if api_key:
 def get_ai_response(prompt):
     if not api_key:
         return "⚠️ Chưa nhập Key! Vào Settings -> Secrets để điền nhé."
+    
+    # CHIẾN THUẬT THÔNG MINH: Thử cái mới, nếu lỗi thì dùng cái cũ
     try:
-        # Dùng model Flash (Nhanh & Mới nhất)
+        # Ưu tiên dùng Flash (Mới, Nhanh)
         model = genai.GenerativeModel('gemini-1.5-flash')
         return model.generate_content(prompt).text
-    except Exception as e:
-        return f"Lỗi kết nối: {str(e)}"
+    except Exception as e_flash:
+        try:
+            # Nếu Flash lỗi, tự động chuyển sang Pro (Cũ nhưng ổn định)
+            model = genai.GenerativeModel('gemini-pro')
+            return f"Run with Pro: {model.generate_content(prompt).text}"
+        except Exception as e_pro:
+            return f"❌ Lỗi toàn tập:\nFlash: {str(e_flash)}\nPro: {str(e_pro)}"
 
 # --- 3. GIAO DIỆN ---
 st.markdown("""<style>
     @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@500;700&display=swap');
     * { font-family: 'Quicksand', sans-serif; }
     .stApp { background: linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%); }
-    .card { background: rgba(255,255,255,0.9); padding: 20px; border-radius: 15px; text-align: center; margin-bottom: 10px; }
+    .debug-box { background: #333; color: #0f0; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 12px; margin-bottom: 20px;}
 </style>""", unsafe_allow_html=True)
 
 with st.sidebar:
     st.title("Innerly Studio 🧸")
-    menu = st.radio("Menu", ["Chat AI", "Rút Thẻ", "Thả Trôi"])
+    st.markdown(f"**Trạng thái hệ thống:**")
+    st.code(f"Phiên bản GenAI: {lib_version}") # Hiện phiên bản để kiểm tra
+    menu = st.radio("Menu", ["Chat AI", "Rút Thẻ"])
 
 if menu == "Chat AI":
     st.header("Tâm sự cùng Innerly")
+    
+    # Hiển thị cảnh báo nếu phiên bản quá cũ
+    if str(lib_version).startswith("0.3") or str(lib_version).startswith("0.4"):
+        st.warning(f"⚠️ Máy chủ đang dùng phiên bản cũ ({lib_version}). Innerly sẽ tự động chuyển sang chế độ tương thích (Gemini Pro).")
+
     if "history" not in st.session_state: st.session_state.history = []
     
     for msg in st.session_state.history:
@@ -69,14 +77,4 @@ if menu == "Chat AI":
 
 elif menu == "Rút Thẻ":
     st.header("Thông điệp chữa lành 🌿")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown('<div class="card"><h3>🌧️ Buồn</h3><p>Cho phép mình buồn 15 phút thôi nhé.</p></div>', unsafe_allow_html=True)
-    with col2:
-        st.markdown('<div class="card"><h3>🔋 Mệt</h3><p>Ngủ một giấc thật sâu để sạc lại pin.</p></div>', unsafe_allow_html=True)
-
-elif menu == "Thả Trôi":
-    st.header("Hộp thả trôi nỗi buồn 🗑️")
-    if st.text_area("Viết nỗi buồn vào đây:") and st.button("🌬️ Thổi bay"):
-        st.balloons()
-        st.success("Nỗi buồn đã bay đi rồi!")
+    st.info("Tính năng đang bảo trì để nâng cấp.")
