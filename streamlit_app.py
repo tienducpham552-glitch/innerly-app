@@ -6,31 +6,34 @@ from datetime import datetime, timedelta
 import google.generativeai as genai
 
 # --- 1. CẤU HÌNH TRANG ---
-st.set_page_config(page_title="Innerly Studio Final", page_icon="🧸", layout="wide")
+st.set_page_config(page_title="Innerly Studio Debug", page_icon="🐞", layout="wide")
 
-# --- 2. CẤU HÌNH API THÔNG MINH ---
-MY_LOCAL_KEY = "" # Điền key vào đây nếu chạy trên máy tính
-api_key = st.secrets.get("GEMINI_API_KEY", MY_LOCAL_KEY)
+# --- 2. CẤU HÌNH API ---
+# Lấy Key từ Secrets
+api_key = st.secrets.get("GEMINI_API_KEY", "")
 
 if api_key:
     genai.configure(api_key=api_key)
 
+# --- HÀM XỬ LÝ AI (CHẾ ĐỘ DÒ LỖI) ---
 def get_ai_response(prompt_text):
     if not api_key:
-        return "⚠️ Chưa có API Key! Hãy kiểm tra cài đặt Secrets."
+        return "⚠️ Chưa có API Key! Hãy vào Settings -> Secrets để dán Key vào."
     
-    # DANH SÁCH CÁC MODEL ĐỂ THỬ (Nếu cái đầu lỗi, sẽ thử cái sau)
-    models_to_try = ['gemini-1.5-flash', 'gemini-pro', 'models/gemini-1.5-flash-latest']
-    
-    for model_name in models_to_try:
+    # Thử Model mới nhất (Flash)
+    try:
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        response = model.generate_content(prompt_text)
+        return response.text
+    except Exception as e_flash:
+        # Nếu Flash lỗi, thử Model cũ (Pro)
         try:
-            model = genai.GenerativeModel(model_name)
+            model = genai.GenerativeModel('gemini-pro')
             response = model.generate_content(prompt_text)
             return response.text
-        except Exception:
-            continue # Nếu lỗi thì bỏ qua, thử cái tiếp theo
-            
-    return "Xin lỗi, Innerly đang quá tải. Bạn hãy thử lại sau 1 phút nhé!"
+        except Exception as e_pro:
+            # NẾU CẢ 2 ĐỀU LỖI -> IN RA MÀN HÌNH ĐỂ SỬA
+            return f"🚨 BẮT ĐƯỢC LỖI RỒI (Chụp ảnh gửi mình đoạn này nhé):\n\n❌ Lỗi 1 (Flash): {str(e_flash)}\n\n❌ Lỗi 2 (Pro): {str(e_pro)}"
 
 # --- 3. CSS GIAO DIỆN ---
 st.markdown("""
@@ -39,24 +42,13 @@ st.markdown("""
     html, body, [class*="css"] { font-family: 'Quicksand', sans-serif; }
     [data-testid="stSidebar"] { background-color: rgba(255, 255, 255, 0.95); border-right: 1px solid #eee; }
     .card-inner {
-        position: relative; width: 100%; min-height: 400px;
-        text-align: center; border-radius: 20px;
         background: rgba(255, 255, 255, 0.9);
-        box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-        border: 2px solid white;
-        display: flex; flex-direction: column;
-        justify-content: center; align-items: center;
-        padding: 20px; transition: transform 0.6s;
+        border-radius: 20px; padding: 20px; text-align: center;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.1); border: 2px solid white;
+        min-height: 400px; display: flex; flex-direction: column; justify-content: center;
     }
-    .card-icon { font-size: 60px; margin-bottom: 15px; }
     .card-title { font-size: 20px; font-weight: 700; color: #333; margin-bottom: 10px; }
     .stButton>button { border-radius: 50px; border: none; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-    .level-badge {
-        padding: 10px; border-radius: 15px;
-        background: linear-gradient(45deg, #85FFBD 0%, #FFFB7D 100%);
-        color: #2c3e50; font-weight: bold; text-align: center;
-        margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -65,21 +57,12 @@ DATA_NU = {
     "Cảm xúc": [
         {"id": 101, "icon": "🌧️", "title": "Buồn không tên", "front": "Tự nhiên thấy buồn.", "back": "• Nghe nhạc không lời\n• Cho phép buồn 15 phút", "quote": "Cảm xúc như cơn mưa."},
         {"id": 102, "icon": "😶‍🌫️", "title": "Overthinking", "front": "Suy nghĩ dồn dập.", "back": "• Viết hết ra giấy\n• Tập trung vào hơi thở", "quote": "Đừng để suy nghĩ làm đau bạn."},
-    ],
-    "Áp lực": [
-        {"id": 201, "icon": "🔋", "title": "Kiệt sức", "front": "Không muốn làm gì.", "back": "• Ngủ một giấc sâu\n• Ăn món ngon", "quote": "Nghỉ ngơi là sạc pin."},
-        {"id": 202, "icon": "👀", "title": "Sợ phán xét", "front": "Sợ người khác nghĩ gì.", "back": "• Sống cho mình\n• Mặc bộ đồ mình thích", "quote": "Đời mình mình lái."},
     ]
 }
-
 DATA_NAM = {
     "Tâm trí": [
         {"id": 301, "icon": "🌪️", "title": "Rối bời", "front": "Quá nhiều việc.", "back": "• Làm việc nhỏ nhất trước\n• Tắt điện thoại 30p", "quote": "Gỡ từng nút thắt."},
         {"id": 302, "icon": "👺", "title": "Tự ti", "front": "Thấy mình kém cỏi.", "back": "• Nhìn lại thành quả cũ\n• Bạn giỏi hơn bạn nghĩ", "quote": "Tin vào chính mình."},
-    ],
-    "Sự nghiệp": [
-        {"id": 401, "icon": "💸", "title": "Áp lực tiền", "front": "Lo lắng tương lai.", "back": "• Lập kế hoạch chi tiêu\n• Học thêm kỹ năng", "quote": "Tiền là công cụ."},
-        {"id": 402, "icon": "🤬", "title": "Nóng giận", "front": "Muốn đập phá.", "back": "• Rửa mặt nước lạnh\n• Chạy bộ ngay", "quote": "Tĩnh lặng là bản lĩnh."},
     ]
 }
 
@@ -89,42 +72,17 @@ if "chat_history" not in st.session_state: st.session_state.chat_history = []
 if "mood_log" not in st.session_state: st.session_state.mood_log = [] 
 if "xp" not in st.session_state: st.session_state.xp = 0 
 
-def get_tree_status(xp):
-    if xp < 20: return "Mầm non 🌱", "Cây đang lớn..."
-    elif xp < 50: return "Cây con 🌿", "Thân cây cứng cáp!"
-    else: return "Cây to 🌳", "Tán lá rộng che chở."
-
 with st.sidebar:
     st.title("Innerly Studio")
-    icon, msg = get_tree_status(st.session_state.xp)
-    st.markdown(f'<div class="level-badge"><h2>{icon}</h2>{st.session_state.xp} XP - {msg}</div>', unsafe_allow_html=True)
+    st.markdown(f"**XP hiện tại: {st.session_state.xp}**")
     st.progress(min(st.session_state.xp % 50 / 50, 1.0))
     st.divider()
-    
     user_name = st.text_input("Tên bạn:", "Bạn")
     user_gender = st.radio("Chế độ:", ["Nữ 🌸", "Nam 🧢"], horizontal=True)
-    
     st.divider()
-    moods = {"Vui 🤩": 10, "Bình yên 🌿": 8, "Ổn 😐": 5, "Buồn ☁️": 3, "Mệt 🔋": 1}
-    curr_mood = st.select_slider("Cảm xúc:", options=list(moods.keys()), value="Bình yên 🌿")
-    if st.button("Lưu (+5 XP)"):
-        st.session_state.mood_log.append({"Time": datetime.now().strftime("%H:%M"), "Score": moods[curr_mood]})
-        st.session_state.xp += 5
-        st.toast("Đã lưu!")
-        
-    st.divider()
-    menu = st.radio("Menu:", ["Rút Thẻ", "Chat AI", "Hộp Thả Trôi", "Biểu Đồ"])
-    
-    sound = st.selectbox("Âm thanh:", ["Tắt", "Mưa 🌧️", "Piano 🎹", "Lofi ☕"])
-    links = {"Mưa 🌧️": "https://www.youtube.com/embed/mPZkdNFkNps?autoplay=1&loop=1",
-             "Piano 🎹": "https://www.youtube.com/embed/4oStW8P_Syo?autoplay=1&loop=1",
-             "Lofi ☕": "https://www.youtube.com/embed/jfKfPfyJRdk?autoplay=1&loop=1"}
-    if sound != "Tắt":
-        st.markdown(f'<iframe width="0" height="0" src="{links[sound]}" allow="autoplay"></iframe>', unsafe_allow_html=True)
+    menu = st.radio("Menu:", ["Rút Thẻ", "Chat AI (Test Lỗi)", "Hộp Thả Trôi"])
 
-bg_color = "linear-gradient(120deg, #d4fc79 0%, #96e6a1 100%)" if moods[curr_mood] > 5 else "linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%)"
-st.markdown(f"<style>.stApp {{ background-image: {bg_color}; background-attachment: fixed; }}</style>", unsafe_allow_html=True)
-
+# --- NỘI DUNG CHÍNH ---
 data = DATA_NU if "Nữ" in user_gender else DATA_NAM
 
 if menu == "Rút Thẻ":
@@ -145,46 +103,31 @@ if menu == "Rút Thẻ":
                     else:
                         st.success(f"**Lời khuyên:**")
                         st.write(card['back'])
-                        st.caption(f"📌 {card['quote']}")
                         if st.button("Úp lại ↩️", key=f"b_{ckey}"):
                             st.session_state.flipped[ckey] = False
                             st.rerun()
 
-elif menu == "Chat AI":
-    st.header("Tâm sự cùng Innerly 🧸")
+elif menu == "Chat AI (Test Lỗi)":
+    st.header("Kiểm tra kết nối AI 🐞")
+    st.caption("Hãy chat một câu bất kỳ để xem lỗi chi tiết:")
+    
     for msg in st.session_state.chat_history:
         st.chat_message(msg["role"]).write(msg["content"])
-    if prompt := st.chat_input("Kể cho mình nghe đi..."):
+        
+    if prompt := st.chat_input("Alo..."):
         st.session_state.chat_history.append({"role": "user", "content": prompt})
         st.chat_message("user").write(prompt)
         with st.chat_message("assistant"):
-            with st.spinner("Đang lắng nghe..."):
-                # Gửi prompt đơn giản để test kết nối trước
-                res = get_ai_response(f"User nói: {prompt}")
-                st.write(res)
+            with st.spinner("Đang kiểm tra lỗi..."):
+                res = get_ai_response(prompt)
+                st.code(res, language="text") # Hiển thị lỗi dạng code cho dễ đọc
                 st.session_state.chat_history.append({"role": "assistant", "content": res})
 
 elif menu == "Hộp Thả Trôi":
     st.header("Hộp Thả Trôi 🗑️")
     txt = st.text_area("Viết nỗi buồn vào đây:", height=200)
-    if st.button("🌬️ Thả trôi (+10 XP)"):
+    if st.button("🌬️ Thả trôi"):
         if txt:
-            ph = st.empty()
-            for i in range(len(txt), -1, -5):
-                ph.code(txt[:i] + " ...👋")
-                time.sleep(0.05)
-            ph.empty()
             st.balloons()
             st.success("Đã thả trôi!")
             st.session_state.xp += 10
-            time.sleep(1)
-            st.rerun()
-
-elif menu == "Biểu Đồ":
-    st.header("Biểu đồ cảm xúc 📈")
-    if st.session_state.mood_log:
-        st.line_chart(pd.DataFrame(st.session_state.mood_log), x="Time", y="Score")
-        if st.button("AI Phân tích"):
-             st.info(get_ai_response(f"Phân tích: {st.session_state.mood_log}"))
-    else:
-        st.warning("Chưa có dữ liệu.")
