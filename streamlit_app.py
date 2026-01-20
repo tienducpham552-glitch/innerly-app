@@ -1,7 +1,7 @@
 import streamlit as st
 import google.generativeai as genai
 
-# --- Cấu hình trang ---
+# --- CẤU HÌNH ---
 st.set_page_config(page_title="Innerly Studio", page_icon="🧸")
 
 # Lấy API Key từ Secrets
@@ -10,18 +10,17 @@ api_key = st.secrets.get("GEMINI_API_KEY", "")
 if api_key:
     genai.configure(api_key=api_key)
 else:
-    st.error("⚠️ Chưa có API Key trong phần Secrets!")
+    st.error("⚠️ Chưa có API Key! Hãy kiểm tra Secrets.")
 
 def get_ai_response(prompt):
     try:
-        # Sử dụng model ổn định nhất
+        # Sử dụng model Flash 1.5 ổn định nhất
         model = genai.GenerativeModel('gemini-1.5-flash')
-        response = model.generate_content(prompt)
-        return response.text
+        return model.generate_content(prompt).text
     except Exception as e:
-        return f"Innerly đang gặp chút lỗi: {str(e)}"
+        return f"Lỗi: {str(e)}"
 
-# --- Giao diện chính ---
+# --- GIAO DIỆN ---
 st.title("Tâm sự cùng Innerly 🧸")
 
 if "history" not in st.session_state:
