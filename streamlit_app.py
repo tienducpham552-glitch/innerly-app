@@ -9,11 +9,11 @@ import google.generativeai as genai
 st.set_page_config(page_title="Innerly Studio Final", page_icon="🧸", layout="wide")
 
 # --- 2. CẤU HÌNH API GOOGLE GEMINI ---
-# BƯỚC QUAN TRỌNG: Dán API Key của bạn vào giữa 2 dấu ngoặc kép bên dưới để chạy trên máy tính.
-# Lấy Key tại: https://aistudio.google.com/app/apikey
-MY_LOCAL_KEY = "AIzaSyCnKVAyjJYT73lZVQqF6RMlGkxila7_SP0"  
+# Nếu muốn chạy trên máy tính, dán Key vào dòng dưới (trong ngoặc kép). 
+# Nếu chạy trên Streamlit Cloud thì KHÔNG CẦN ĐIỀN (nó sẽ tự lấy từ Secrets).
+MY_LOCAL_KEY = ""  
 
-# Logic tự động nhận diện Key (Ưu tiên Secrets trên Cloud, nếu không có thì dùng Key Local)
+# Logic tự động nhận diện Key
 api_key = st.secrets.get("GEMINI_API_KEY", MY_LOCAL_KEY)
 
 if api_key:
@@ -21,9 +21,10 @@ if api_key:
 
 def get_ai_response(prompt_text):
     if not api_key:
-        return "⚠️ Chưa có API Key! Hãy mở file code, tìm dòng 'MY_LOCAL_KEY' và dán key của bạn vào nhé."
+        return "⚠️ Chưa có API Key! Hãy kiểm tra lại cài đặt Secrets trên Streamlit Cloud hoặc điền vào MY_LOCAL_KEY."
     try:
-       model = genai.GenerativeModel('gemini-1.5-flash')
+        # Đã cập nhật model mới nhất để tránh lỗi 404
+        model = genai.GenerativeModel('gemini-1.5-flash')
         response = model.generate_content(prompt_text)
         return response.text
     except Exception as e:
@@ -202,5 +203,4 @@ elif menu == "Biểu Đồ":
         if st.button("AI Phân tích"):
              st.info(get_ai_response(f"Phân tích xu hướng cảm xúc này: {st.session_state.mood_log}"))
     else:
-
         st.warning("Chưa có dữ liệu. Hãy Check-in cảm xúc ở thanh bên trái nhé!")
