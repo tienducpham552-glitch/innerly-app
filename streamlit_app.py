@@ -23,7 +23,7 @@ def get_ai_response(prompt_text):
     if not api_key:
         return "⚠️ Chưa có API Key! Hãy mở file code, tìm dòng 'MY_LOCAL_KEY' và dán key của bạn vào nhé."
     try:
-        model = genai.GenerativeModel('gemini-pro')
+       model = genai.GenerativeModel('gemini-1.5-flash')
         response = model.generate_content(prompt_text)
         return response.text
     except Exception as e:
@@ -202,4 +202,5 @@ elif menu == "Biểu Đồ":
         if st.button("AI Phân tích"):
              st.info(get_ai_response(f"Phân tích xu hướng cảm xúc này: {st.session_state.mood_log}"))
     else:
+
         st.warning("Chưa có dữ liệu. Hãy Check-in cảm xúc ở thanh bên trái nhé!")
